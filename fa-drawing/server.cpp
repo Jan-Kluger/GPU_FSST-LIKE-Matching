@@ -14,6 +14,7 @@
 #include "codegen/cppcodegen.hpp"
 #include "codegen/llvmcodegen.hpp"
 #include <nlohmann/json.hpp>
+#include <unistd.h>
 
 std::unique_ptr<automata::parsing::LikePatternAutomaton> generateFullAutomaton(const Encoder& encoder, const std::string &patternString) {
     std::span<const uint8_t> pattern(reinterpret_cast<const uint8_t *>(patternString.data()), patternString.size());
@@ -339,7 +340,7 @@ int main() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    if (bind(serverFd, (struct sockaddr *) &address, sizeof(address)) < 0) {
+    if (::bind(serverFd, (struct sockaddr *) &address, sizeof(address)) < 0) {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }

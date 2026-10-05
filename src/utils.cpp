@@ -23,6 +23,7 @@
 #include "utils.hpp"
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <fmt/format.h>
 #include <fstream>
 

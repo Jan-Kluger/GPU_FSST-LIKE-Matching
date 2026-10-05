@@ -32,7 +32,7 @@
 
 struct Pattern {
     virtual automata::SingleStartFiniteAutomaton createStartAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) = 0;
-    virtual automata::MultipleStartsFiniteAutomaton createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates) = 0;
+    virtual automata::MultipleStartsFiniteAutomaton createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates, bool failureless = true) = 0;
     virtual automata::SingleStartFiniteAutomaton createEndAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) = 0;
     virtual ~Pattern() = default;
 
@@ -47,7 +47,7 @@ public:
     std::basic_string<uint8_t> pattern;
     explicit StringPattern(const std::basic_string<uint8_t>& pattern);
     automata::SingleStartFiniteAutomaton createStartAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) override;
-    automata::MultipleStartsFiniteAutomaton createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates) override;
+    automata::MultipleStartsFiniteAutomaton createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates, bool failureless = true) override;
     automata::SingleStartFiniteAutomaton createEndAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) override;
     ~StringPattern() override = default;
 };
@@ -58,7 +58,7 @@ public:
     std::vector<uint8_t> numUnderscores;
     UnderscorePattern(const std::vector<std::basic_string<uint8_t>>& subpatterns, const std::vector<uint8_t>& numUnderscores);
     automata::SingleStartFiniteAutomaton createStartAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) override;
-    automata::MultipleStartsFiniteAutomaton createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates) override;
+    automata::MultipleStartsFiniteAutomaton createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates, bool failureless = true) override;
     automata::SingleStartFiniteAutomaton createEndAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) override;
 };
 

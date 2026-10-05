@@ -22,6 +22,7 @@
 
 #include "encoder.hpp"
 #include <fmt/format.h>
+#include <unistd.h>
 
 Bitmap Encoder::createAnywhereBitmap(uint8_t byte) const {
     Bitmap bitmap{};

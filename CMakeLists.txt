@@ -48,7 +48,9 @@ if(PKG_CONFIG_FOUND)
     pkg_check_modules(VECTORSCAN IMPORTED_TARGET libhs)
 endif()
 
-set(LLVM_DIR "/usr/lib/llvm-16/lib/cmake/llvm")
+if(NOT DEFINED LLVM_DIR AND EXISTS "/usr/lib/llvm-16/lib/cmake/llvm")
+    set(LLVM_DIR "/usr/lib/llvm-16/lib/cmake/llvm")
+endif()
 find_package(LLVM 16 CONFIG)
 
 if(LLVM_FOUND)
