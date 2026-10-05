@@ -214,6 +214,16 @@ automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(con
     }
     automata::support::reverseBreadthFirstSearch(automaton.starts, automaton.states, currentStates);
     automata::support::precomputeStartPositions(automaton.starts);
+    if (failureless) {
+        // PFAC: a mismatch must terminate the walk, not restart at S0. Done last so that
+        // level assignment above still sees the original default transitions.
+        for (automata::State* start: automaton.starts) {
+            start->defaultTransition = errorState;
+        }
+        for (automata::State& state: automaton.states) {
+            state.defaultTransition = errorState;
+        }
+    }
     return std::move(automaton);
 }
 
