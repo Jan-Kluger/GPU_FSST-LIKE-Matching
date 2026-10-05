@@ -166,7 +166,7 @@ automata::SingleStartFiniteAutomaton StringPattern::createStartAutomaton(const E
     return std::move(automaton);
 }
 
-automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates) {
+automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates, bool failureless) {
     automata::MultipleStartsFiniteAutomaton automaton{errorState};
     automata::State* defaultTransition = automaton.createState();
     automaton.starts[0] = defaultTransition;
@@ -209,7 +209,9 @@ automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(con
     automata::support::createSinkState(automaton.starts[0], createStateFn);
     automata::support::eraseUnusedStarts(automaton.starts);
     automata::percentage::linkStarts(automaton.starts);
-    automata::percentage::constructFallbackTransitions(automaton.starts, currentStates);
+    if (!failureless) {
+        automata::percentage::constructFallbackTransitions(automaton.starts, currentStates);
+    }
     automata::support::reverseBreadthFirstSearch(automaton.starts, automaton.states, currentStates);
     automata::support::precomputeStartPositions(automaton.starts);
     return std::move(automaton);
@@ -229,7 +231,7 @@ automata::SingleStartFiniteAutomaton UnderscorePattern::createStartAutomaton(con
     throw std::runtime_error("Not implemented");
 }
 
-automata::MultipleStartsFiniteAutomaton UnderscorePattern::createMiddleAutomaton(const Encoder &encoder, const std::vector<automata::State*> &precomputedEnds, automata::State *errorState, std::array<automata::State, 8> &startStates) {
+automata::MultipleStartsFiniteAutomaton UnderscorePattern::createMiddleAutomaton(const Encoder &encoder, const std::vector<automata::State*> &precomputedEnds, automata::State *errorState, std::array<automata::State, 8> &startStates, bool) {
     throw std::runtime_error("Not implemented");
 }
 
