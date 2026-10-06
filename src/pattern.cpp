@@ -61,28 +61,28 @@ std::vector<std::unique_ptr<Pattern>> Pattern::splitIntoSubpatterns(const std::s
     uint8_t stage = 0;
     while (idx < endIdx) {
         switch (stage) {
-            case 0:
-                if (pattern[idx] != '%' && pattern[idx] != '_') {
-                    stage = 1;
+        case 0:
+            if (pattern[idx] != '%' && pattern[idx] != '_') {
+                stage = 1;
+            }
+            break;
+        case 1:
+            if (pattern[idx] == '%') {
+                stage = 2;
+            }
+            break;
+        case 2:
+            if (pattern[idx] != '%' && pattern[idx] != '_') {
+                auto currentPattern = Pattern::createPattern(std::span<const uint8_t>(pattern.data() + startIdx, idx - startIdx));
+                if (currentPattern) {
+                    subpatterns.push_back(std::move(currentPattern));
                 }
-                break;
-            case 1:
-                if (pattern[idx] == '%') {
-                    stage = 2;
-                }
-                break;
-            case 2:
-                if (pattern[idx] != '%' && pattern[idx] != '_') {
-                    auto currentPattern = Pattern::createPattern(std::span<const uint8_t>(pattern.data() + startIdx, idx - startIdx));
-                    if (currentPattern) {
-                        subpatterns.push_back(std::move(currentPattern));
-                    }
-                    stage = 1;
-                    startIdx = idx;
-                }
-                break;
-            default:
-                throw std::runtime_error("Unexpected stage in Pattern::splitIntoSubpatterns");
+                stage = 1;
+                startIdx = idx;
+            }
+            break;
+        default:
+            throw std::runtime_error("Unexpected stage in Pattern::splitIntoSubpatterns");
         }
         idx += pattern[idx] == '\\';
         ++idx;
@@ -129,22 +129,22 @@ std::unique_ptr<Pattern> Pattern::createPattern(const std::span<const uint8_t> &
     int64_t idx = startIdx;
     while (idx <= endIdx) {
         switch (pattern[idx]) {
-            case '_':
-                if (!current.empty()) {
-                    subpatterns.push_back(current);
-                    current.clear();
-                }
-                ++currentUnderscores;
-                break;
-            case '\\':
-                ++idx;
-            default:
-                if (currentUnderscores != 0) {
-                    numUnderscores.push_back(currentUnderscores);
-                    currentUnderscores = 0;
-                }
-                current.push_back(pattern[idx]);
-                break;
+        case '_':
+            if (!current.empty()) {
+                subpatterns.push_back(current);
+                current.clear();
+            }
+            ++currentUnderscores;
+            break;
+        case '\\':
+            ++idx;
+        default:
+            if (currentUnderscores != 0) {
+                numUnderscores.push_back(currentUnderscores);
+                currentUnderscores = 0;
+            }
+            current.push_back(pattern[idx]);
+            break;
         }
         ++idx;
     }
@@ -158,7 +158,8 @@ std::unique_ptr<Pattern> Pattern::createPattern(const std::span<const uint8_t> &
 
 StringPattern::StringPattern(const std::basic_string<uint8_t> &pattern): pattern(pattern) {}
 
-automata::SingleStartFiniteAutomaton StringPattern::createStartAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) {
+automata::SingleStartFiniteAutomaton StringPattern::createStartAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds,
+                                                                         automata::State *errorState) {
     automata::SingleStartFiniteAutomaton automaton{errorState, automata::SingleStartFiniteAutomaton::Direction::FORWARD};
     auto createStateFn = [&]() { return automaton.createState(); };
     automata::percentage::constructPrefixAutomaton(pattern, 0, encoder, precomputedEnds, createStateFn, automaton.startState.get());
@@ -166,9 +167,11 @@ automata::SingleStartFiniteAutomaton StringPattern::createStartAutomaton(const E
     return std::move(automaton);
 }
 
-automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState, std::array<automata::State, 8>& startStates, bool failureless) {
+automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds,
+                                                                             automata::State *errorState, std::array<automata::State, 8> &startStates,
+                                                                             bool failureless) {
     automata::MultipleStartsFiniteAutomaton automaton{errorState};
-    automata::State* defaultTransition = automaton.createState();
+    automata::State *defaultTransition = automaton.createState();
     automaton.starts[0] = defaultTransition;
     automaton.defaultTransition = defaultTransition;
     automaton.starts[0]->defaultTransition = defaultTransition;
@@ -176,14 +179,14 @@ automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(con
         startStates[idx].defaultTransition = defaultTransition;
         automaton.starts[idx + 1] = &startStates[idx];
     }
-    std::unordered_set<const automata::State*> currentStates{};
+    std::unordered_set<const automata::State *> currentStates{};
     auto createStateFn = [&]() {
-        automata::State* newState =  automaton.createState();
+        automata::State *newState = automaton.createState();
         currentStates.insert(newState);
         return newState;
     };
-    std::vector<automata::State*> cache(pattern.size(), nullptr);
-    std::array<automata::State*, 255> transitionStates{nullptr};
+    std::vector<automata::State *> cache(pattern.size(), nullptr);
+    std::array<automata::State *, 255> transitionStates{nullptr};
 
     uint8_t max_n = pattern.size() >= 8 ? 7 : pattern.size() - 1;
     std::vector<std::vector<uint8_t>> symbols = encoder.findAllSymbolsWithSuffix(pattern, max_n);
@@ -191,19 +194,13 @@ automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(con
         if (symbols[i].empty()) {
             continue;
         }
-        automata::percentage::connectStartsToSubautomaton(
-            pattern, encoder, precomputedEnds, createStateFn, errorState, automaton.starts, currentStates,
-            transitionStates, cache, i, symbols[i]
-        );
+        automata::percentage::connectStartsToSubautomaton(pattern, encoder, precomputedEnds, createStateFn, errorState, automaton.starts, currentStates,
+                                                          transitionStates, cache, i, symbols[i]);
     }
 
-    automata::percentage::integrateSymbolsContainingPattern(
-        pattern, encoder, precomputedEnds, automaton.starts
-    );
-    automata::percentage::constructCachedPrefixAutomaton(
-        pattern, 0, encoder, precomputedEnds, createStateFn, false, cache, errorState,
-        currentStates, automaton.starts[0]
-    );
+    automata::percentage::integrateSymbolsContainingPattern(pattern, encoder, precomputedEnds, automaton.starts);
+    automata::percentage::constructCachedPrefixAutomaton(pattern, 0, encoder, precomputedEnds, createStateFn, false, cache, errorState, currentStates,
+                                                         automaton.starts[0]);
 
     automata::percentage::splitStarts(automaton.starts, currentStates);
     automata::support::createSinkState(automaton.starts[0], createStateFn);
@@ -217,34 +214,40 @@ automata::MultipleStartsFiniteAutomaton StringPattern::createMiddleAutomaton(con
     if (failureless) {
         // PFAC: a mismatch must terminate the walk, not restart at S0. Done last so that
         // level assignment above still sees the original default transitions.
-        for (automata::State* start: automaton.starts) {
+        for (automata::State *start: automaton.starts) {
             start->defaultTransition = errorState;
         }
-        for (automata::State& state: automaton.states) {
+        for (automata::State &state: automaton.states) {
             state.defaultTransition = errorState;
         }
     }
     return std::move(automaton);
 }
 
-automata::SingleStartFiniteAutomaton StringPattern::createEndAutomaton(const Encoder& encoder, const std::vector<automata::State*>& precomputedEnds, automata::State* errorState) {
+automata::SingleStartFiniteAutomaton StringPattern::createEndAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds,
+                                                                       automata::State *errorState) {
     automata::SingleStartFiniteAutomaton automaton{errorState, automata::SingleStartFiniteAutomaton::Direction::BACKWARD};
-    std::vector<automata::State*> pseudoEnds = automata::percentage::initialisePseudoEnds(&automaton, precomputedEnds);
+    std::vector<automata::State *> pseudoEnds = automata::percentage::initialisePseudoEnds(&automaton, precomputedEnds);
     automata::percentage::constructSuffixAutomaton(pattern, encoder, &automaton, pseudoEnds, automaton.startState.get());
     automaton.findDeterministicPath();
     return std::move(automaton);
 }
 
-UnderscorePattern::UnderscorePattern(const std::vector<std::basic_string<uint8_t>> &subpatterns, const std::vector<uint8_t> &numUnderscores): subpatterns(subpatterns), numUnderscores(numUnderscores) {}
+UnderscorePattern::UnderscorePattern(const std::vector<std::basic_string<uint8_t>> &subpatterns, const std::vector<uint8_t> &numUnderscores)
+    : subpatterns(subpatterns), numUnderscores(numUnderscores) {}
 
-automata::SingleStartFiniteAutomaton UnderscorePattern::createStartAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds, automata::State *errorState) {
+automata::SingleStartFiniteAutomaton UnderscorePattern::createStartAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds,
+                                                                             automata::State *errorState) {
     throw std::runtime_error("Not implemented");
 }
 
-automata::MultipleStartsFiniteAutomaton UnderscorePattern::createMiddleAutomaton(const Encoder &encoder, const std::vector<automata::State*> &precomputedEnds, automata::State *errorState, std::array<automata::State, 8> &startStates, bool) {
+automata::MultipleStartsFiniteAutomaton UnderscorePattern::createMiddleAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds,
+                                                                                 automata::State *errorState, std::array<automata::State, 8> &startStates,
+                                                                                 bool) {
     throw std::runtime_error("Not implemented");
 }
 
-automata::SingleStartFiniteAutomaton UnderscorePattern::createEndAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds, automata::State *errorState) {
+automata::SingleStartFiniteAutomaton UnderscorePattern::createEndAutomaton(const Encoder &encoder, const std::vector<automata::State *> &precomputedEnds,
+                                                                           automata::State *errorState) {
     throw std::runtime_error("Not implemented");
 }
