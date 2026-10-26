@@ -11,6 +11,7 @@ set(TEST_CC
         "StartPatternBuildingTest.cpp"
         "MiddlePatternMatchingTest.cpp"
         "PfacMiddlePatternMatchingTest.cpp"
+        "DpacMiddlePatternMatchingTest.cpp"
         "EndPatternMatchingTest.cpp"
         "EndPatternBuildingTest.cpp"
         "FullPatternMatchingTest.cpp"

@@ -5,16 +5,6 @@
 #include <gtest/gtest.h>
 
 namespace test {
-// taken from test/MiddlePatternMatchingTest, basic sequential traversal of automoton to see if we accept.
-bool sequentialMatch(const automata::MultipleStartsFiniteAutomaton &automaton, const std::span<const uint8_t> &compressed) {
-    size_t pos = 0;
-    automata::State *state = automaton.starts[0];
-    while (pos < compressed.size() && state != automaton.errorState && !automata::isEndState(state, endStates)) {
-        state = state->transition(compressed[pos++]);
-    }
-    return automata::isEndState(state, endStates);
-}
-
 // PFAC: one independent walk per byte position. This is the algo 1 discussed, just not on gpu
 // // (failureless = true), where a mismatch lands in the error state
 bool pfacMatch(const automata::MultipleStartsFiniteAutomaton &automaton, const std::span<const uint8_t> &compressed) {
@@ -40,7 +30,7 @@ bool pfacMatch(const automata::MultipleStartsFiniteAutomaton &automaton, const s
 
 // Builds both automata for `pattern` and asserts PFAC agrees with the sequential walk on
 // every string in the test file.
-void comparePattern(const std::basic_string<uint8_t> &pattern) {
+void comparePfacPattern(const std::basic_string<uint8_t> &pattern) {
     StringPattern sp{pattern};
     std::array<automata::State, 8> refScratch{};
     std::array<automata::State, 8> pfacScratch{};
@@ -63,7 +53,7 @@ TEST(PfacMiddlePatternMatchTest, TestSymbolsAsPatterns) {
             continue;
         }
         std::basic_string<uint8_t> pattern(symbol.val.str, symbol.val.str + symbol.length());
-        comparePattern(pattern);
+        comparePfacPattern(pattern);
     }
 }
 
@@ -73,7 +63,7 @@ TEST(PfacMiddlePatternMatchTest, TestFuzzing) {
     size_t num_trials = 500;
     for (size_t t = 0; t < num_trials; ++t) {
         std::vector<uint8_t> patternVector = rng.generate_pattern(1, 6, chars);
-        comparePattern(std::basic_string<uint8_t>(patternVector.data(), patternVector.size()));
+        comparePfacPattern(std::basic_string<uint8_t>(patternVector.data(), patternVector.size()));
     }
 }
 } // namespace test

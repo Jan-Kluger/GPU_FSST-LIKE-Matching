@@ -26,37 +26,40 @@
 #include "automata.hpp"
 
 namespace automata::support {
-    struct TemporaryStarts {
-    private:
-        uint8_t idx;
-        std::array<std::array<State, 8>, 2> states{};
+struct TemporaryStarts {
+private:
+    uint8_t idx;
+    std::array<std::array<State, 8>, 2> states{};
 
-    public:
-        explicit TemporaryStarts(State* defaultTransition);
-        TemporaryStarts();
-        std::array<State, 8>& get();
+public:
+    explicit TemporaryStarts(State *defaultTransition);
+    TemporaryStarts();
+    std::array<State, 8> &get();
+};
+
+void eraseUnusedStarts(std::vector<State *> &starts);
+void precomputeStartPositions(std::vector<State *> &starts);
+void deepCopyAutomaton(State *destination, const State *source, const std::unordered_set<const State *> &currentStates,
+                       const std::function<State *()> &createState);
+void reverseBreadthFirstSearch(const std::vector<State *> &startStates, std::deque<State> &states, const std::unordered_set<const State *> &currentStates);
+uint64_t longestMatchLength(const State *start, const State *errorState, const std::vector<State> &endStates);
+const State *transitionTrailingState(const State *source, uint8_t symbol, std::unordered_map<const State *, const State *> &trailingMappings,
+                                     const State *startState);
+void copyFallbackTransitions(std::unordered_map<const State *, const State *> &trailingMappings, std::deque<State *> &topoSorted);
+void createSinkState(State *startState, const std::function<State *()> &createState);
+
+struct QueueObject {
+    State *destination;
+    const State *source;
+
+    std::tuple<State *, const State *> unpack();
+
+    bool operator==(const QueueObject &other) const;
+
+    struct Hash {
+        size_t operator()(const QueueObject &obj) const noexcept;
     };
-
-    void eraseUnusedStarts(std::vector<State*>& starts);
-    void precomputeStartPositions(std::vector<State*>& starts);
-    void deepCopyAutomaton(State* destination, const State* source, const std::unordered_set<const State*>& currentStates, const std::function<State*()>& createState);
-    void reverseBreadthFirstSearch(const std::vector<State*>& startStates, std::deque<State>& states, const std::unordered_set<const State*>& currentStates);
-    const State* transitionTrailingState(const State* source, uint8_t symbol, std::unordered_map<const State*, const State*>& trailingMappings, const State* startState);
-    void copyFallbackTransitions(std::unordered_map<const State*, const State*>& trailingMappings, std::deque<State*>& topoSorted);
-    void createSinkState(State* startState, const std::function<State*()>& createState);
-
-    struct QueueObject {
-        State* destination;
-        const State* source;
-
-        std::tuple<State*, const State*> unpack();
-
-        bool operator==(const QueueObject& other) const;
-
-        struct Hash {
-            size_t operator()(const QueueObject& obj) const noexcept;
-        };
-    };
-    void shallowCopyAutomaton(State* destination, const State* source, const std::unordered_set<const State*>& currentStates);
-}
-#endif //FSST_LIKE_MATCHING_SHARED_HPP
+};
+void shallowCopyAutomaton(State *destination, const State *source, const std::unordered_set<const State *> &currentStates);
+} // namespace automata::support
+#endif // FSST_LIKE_MATCHING_SHARED_HPP
