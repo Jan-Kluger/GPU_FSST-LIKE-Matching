@@ -1,6 +1,7 @@
 #include "shared.hpp"
 #include "automata.hpp"
 #include "env.hpp"
+#include "gpu/middle_table.hpp"
 #include "pattern.hpp"
 #include <gtest/gtest.h>
 
@@ -28,6 +29,16 @@ bool pfacMatch(const automata::MultipleStartsFiniteAutomaton &automaton, const s
     return false;
 }
 
+// Same as pfacMatch, but on the flattened table instead of the State graph.
+bool pfacTableMatch(const automata::parsing::AutomatonTable &table, const std::span<const uint8_t> &compressed, gpu::EscapeCheck check) {
+    for (size_t start = 0; start < compressed.size(); ++start) {
+        if (gpu::pfacWalk(table, compressed.data(), compressed.size(), start, check)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Builds both automata for `pattern` and asserts PFAC agrees with the sequential walk on
 // every string in the test file.
 void comparePfacPattern(const std::basic_string<uint8_t> &pattern) {
@@ -36,6 +47,11 @@ void comparePfacPattern(const std::basic_string<uint8_t> &pattern) {
     std::array<automata::State, 8> pfacScratch{};
     automata::MultipleStartsFiniteAutomaton refAut = sp.createMiddleAutomaton(encoder, precomputedEnds, &errorState, refScratch, false);
     automata::MultipleStartsFiniteAutomaton pfacAut = sp.createMiddleAutomaton(encoder, precomputedEnds, &errorState, pfacScratch, true);
+    automata::parsing::AutomatonTable pfacTable = gpu::buildMiddleTable(pfacAut, endStates);
+    // an unset level (UINT64_MAX) would overflow pos + level and disable the bound
+    for (size_t s = 0; s < pfacTable.error; ++s) {
+        ASSERT_NE(pfacTable.levels[s], UINT64_MAX) << fmt::format("pattern {}: state {} has no level", byteSpanToString(pattern), s);
+    }
 
     for (size_t idx = 0; idx < out->getNumElements(); ++idx) {
         std::span<const uint8_t> compressed = out->get(idx);
@@ -43,6 +59,13 @@ void comparePfacPattern(const std::basic_string<uint8_t> &pattern) {
         bool got = pfacMatch(pfacAut, compressed);
         ASSERT_EQ(expected, got) << fmt::format("pattern {} disagrees on string {} (encoded as {}) at index {}: sequential={}, pfac={}",
                                                 byteSpanToString(pattern), byteSpanToString(in->get(idx)), byteSpanToByteList(compressed), idx, expected, got);
+        for (gpu::EscapeCheck check: {gpu::EscapeCheck::OnAccept, gpu::EscapeCheck::First}) {
+            bool gotTable = pfacTableMatch(pfacTable, compressed, check);
+            ASSERT_EQ(expected, gotTable) << fmt::format(
+                "pattern {} disagrees on string {} (encoded as {}) at index {}: sequential={}, pfac table={} (escape check {})", byteSpanToString(pattern),
+                byteSpanToString(in->get(idx)), byteSpanToByteList(compressed), idx, expected, gotTable,
+                check == gpu::EscapeCheck::First ? "first" : "on accept");
+        }
     }
 }
 

@@ -69,6 +69,7 @@ if(LLVM_FOUND)
             src/codegen/codegen.cpp
             src/codegen/cppcodegen.cpp
             src/codegen/llvmcodegen.cpp
+            src/gpu/middle_table.cpp
     )
     target_include_directories(core_base PUBLIC ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(core_base PUBLIC fsst fmt ${llvm_libs})
