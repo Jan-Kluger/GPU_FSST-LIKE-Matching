@@ -2,6 +2,7 @@
 #include "automata.hpp"
 #include "common.hpp"
 #include "env.hpp"
+#include "gpu/middle_table.hpp"
 #include "pattern.hpp"
 #include <gtest/gtest.h>
 
@@ -24,6 +25,26 @@ bool dpacMatch(const automata::MultipleStartsFiniteAutomaton &automaton, const s
     return false;
 }
 
+// Same as dpacMatch, but each chunk is parsed by Calin's table walk (AutomatonTable::parse) instead of the State graph.
+bool dpacTableMatch(const automata::parsing::AutomatonTable &table, const std::span<const uint8_t> &compressed, size_t chunkSize, size_t overlap) {
+    for (size_t chunkStart = 0; chunkStart < compressed.size(); chunkStart += chunkSize) {
+        size_t end = std::min(chunkStart + chunkSize + overlap, compressed.size());
+        size_t pos = chunkStart;
+        if (pos > 0 && compressed[pos - 1] == 255) {
+            ++pos;
+        }
+        if (pos >= end) {
+            continue;
+        }
+        int64_t strIdx = 0;
+        uint8_t symIdx = 0;
+        if (table.parse<true>(&strIdx, &symIdx, compressed.data() + pos, end - pos)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 constexpr std::array<size_t, 8> dpacChunkSizes{1, 2, 3, 4, 7, 16, 64, 1 << 20};
 
 void compareDpacPattern(const std::basic_string<uint8_t> &pattern) {
@@ -36,6 +57,8 @@ void compareDpacPattern(const std::basic_string<uint8_t> &pattern) {
     uint64_t longest = automata::support::longestMatchLength(pfacAut.starts[0], &errorState, endStates);
     ASSERT_GE(longest, pfacAut.starts[0]->level) << fmt::format("pattern {}: longest match shorter than shortest", byteSpanToString(pattern));
     size_t overlap = longest - 1;
+    // DPAC keeps the failure edges, so the table is built from refAut
+    automata::parsing::AutomatonTable dpacTable = gpu::buildMiddleTable(refAut, endStates);
 
     for (size_t idx = 0; idx < out->getNumElements(); ++idx) {
         std::span<const uint8_t> compressed = out->get(idx);
@@ -45,6 +68,10 @@ void compareDpacPattern(const std::basic_string<uint8_t> &pattern) {
             ASSERT_EQ(expected, got) << fmt::format(
                 "pattern {} disagrees on string {} (encoded as {}) at index {}: sequential={}, dpac={} (chunk size {}, overlap {})", byteSpanToString(pattern),
                 byteSpanToString(in->get(idx)), byteSpanToByteList(compressed), idx, expected, got, chunkSize, overlap);
+            bool gotTable = dpacTableMatch(dpacTable, compressed, chunkSize, overlap);
+            ASSERT_EQ(expected, gotTable) << fmt::format(
+                "pattern {} disagrees on string {} (encoded as {}) at index {}: sequential={}, dpac table={} (chunk size {}, overlap {})",
+                byteSpanToString(pattern), byteSpanToString(in->get(idx)), byteSpanToByteList(compressed), idx, expected, gotTable, chunkSize, overlap);
         }
     }
 }
